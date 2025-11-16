@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2 class="text-center mt-3 mb-3">📈 Sales History</h2>
+<table class="table table-bordered text-center">
+  <thead class="table-dark">
+    <tr>
+      <th>Date</th>
+      <th>Product</th>
+      <th>Quantity</th>
+      <th>Type</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for sale in sales %}
+      <tr>
+        <td>{{ sale.date }}</td>
+        <td>{{ sale.product.name }}</td>
+        <td>{{ sale.qty }}</td>
+        <td>{{ sale.type }}</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

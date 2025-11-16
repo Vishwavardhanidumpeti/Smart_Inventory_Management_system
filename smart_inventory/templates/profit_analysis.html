@@ -1,0 +1,244 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container">
+    <div class="section-header mb-4">
+        <div>
+            <h1 class="section-title" style="color: #000000;">Profit Analysis</h1>
+            <p class="section-subtitle">Comprehensive profit metrics and financial insights</p>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="dashboard-grid mb-4">
+        <div class="profit-card">
+            <div class="metric-label text-white-50">Total Revenue</div>
+            <div class="profit-value">₹{{ "{:,.2f}".format(total_revenue) }}</div>
+        </div>
+
+        <div class="profit-card" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
+            <div class="metric-label text-white-50">Total Cost</div>
+            <div class="profit-value">₹{{ "{:,.2f}".format(total_cost) }}</div>
+        </div>
+
+        <div class="profit-card {% if total_profit < 0 %}negative{% endif %}">
+            <div class="metric-label text-white-50">Net Profit</div>
+            <div class="profit-value">₹{{ "{:,.2f}".format(total_profit) }}</div>
+            <div class="mt-2">
+                <span class="badge bg-white text-dark">
+                    Margin: {{ "{:.1f}".format((total_profit/total_revenue*100) if total_revenue > 0 else 0) }}%
+                </span>
+            </div>
+        </div>
+
+        <div class="metric-card warning">
+            <div class="metric-label">Potential Profit</div>
+            <div class="metric-value">₹{{ "{:,.2f}".format(total_potential_profit) }}</div>
+            <small class="text-muted">From current stock</small>
+        </div>
+    </div>
+
+    <!-- Monthly Profit Trend Chart -->
+    {% if monthly_trend %}
+    <div class="chart-container">
+        <h3 class="chart-title">
+            <i class="fas fa-chart-line me-2"></i>Monthly Profit Trend
+        </h3>
+        <canvas id="monthlyProfitChart"></canvas>
+    </div>
+    {% endif %}
+
+    <!-- Category Profit Breakdown -->
+    {% if category_profits %}
+    <div class="chart-container">
+        <h3 class="chart-title">
+            <i class="fas fa-chart-pie me-2"></i>Profit by Category
+        </h3>
+        <canvas id="categoryProfitChart"></canvas>
+    </div>
+    {% endif %}
+
+    <!-- Product Profit Table -->
+    <div class="card">
+        <div class="card-header" style="background: #ffffff; color: #000000;">
+            <i class="fas fa-table me-2" style="color: #000000;"></i><span style="color: #000000; font-weight: 700;">Profit Analysis by Product</span>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th class="text-center">Category</th>
+                            <th class="text-center">Units Sold</th>
+                            <th class="text-right">Revenue</th>
+                            <th class="text-right">Cost</th>
+                            <th class="text-right">Profit</th>
+                            <th class="text-center">Margin %</th>
+                            <th class="text-right">Profit/Unit</th>
+                            <th class="text-right">Potential Profit</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in product_profits %}
+                        <tr>
+                            <td>
+                                <strong>{{ item.product.name }}</strong><br>
+                                <small class="text-muted">{{ item.product.sku }}</small>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-secondary">{{ item.product.category or 'N/A' }}</span>
+                            </td>
+                            <td class="text-center"><strong>{{ item.units_sold }}</strong></td>
+                            <td class="text-right">₹{{ "{:,.2f}".format(item.revenue) }}</td>
+                            <td class="text-right">₹{{ "{:,.2f}".format(item.cost) }}</td>
+                            <td class="text-right">
+                                <strong class="{% if item.profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    ₹{{ "{:,.2f}".format(item.profit) }}
+                                </strong>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge {% if item.profit_margin >= 20 %}badge-success{% elif item.profit_margin >= 10 %}badge-warning{% else %}badge-danger{% endif %}">
+                                    {{ "{:.1f}".format(item.profit_margin) }}%
+                                </span>
+                            </td>
+                            <td class="text-right">₹{{ "{:,.2f}".format(item.profit_per_unit) }}</td>
+                            <td class="text-right">
+                                <span class="text-info">₹{{ "{:,.2f}".format(item.potential_profit) }}</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Monthly Profit Trend Chart
+    {% if monthly_trend %}
+    const monthlyCtx = document.getElementById('monthlyProfitChart');
+    const monthlyLabels = [];
+    const monthlyRevenue = [];
+    const monthlyCost = [];
+    const monthlyProfit = [];
+    
+    {% for month, data in monthly_trend %}
+    monthlyLabels.push('{{ month }}');
+    monthlyRevenue.push({{ data.revenue }});
+    monthlyCost.push({{ data.cost }});
+    monthlyProfit.push({{ data.profit }});
+    {% endfor %}
+    
+    const monthlyData = {
+        labels: monthlyLabels,
+        datasets: [{
+            label: 'Revenue',
+            data: monthlyRevenue,
+            borderColor: 'rgb(37, 99, 235)',
+            backgroundColor: 'rgba(37, 99, 235, 0.1)',
+            tension: 0.4
+        }, {
+            label: 'Cost',
+            data: monthlyCost,
+            borderColor: 'rgb(239, 68, 68)',
+            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+            tension: 0.4
+        }, {
+            label: 'Profit',
+            data: monthlyProfit,
+            borderColor: 'rgb(16, 185, 129)',
+            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+            tension: 0.4,
+            borderWidth: 3
+        }]
+    };
+    
+    new Chart(monthlyCtx, {
+        type: 'line',
+        data: monthlyData,
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                title: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '₹' + value.toLocaleString();
+                        }
+                    }
+                }
+            }
+        }
+    });
+    {% endif %}
+
+    // Category Profit Chart
+    {% if category_profits %}
+    const categoryCtx = document.getElementById('categoryProfitChart');
+    const categoryLabels = [];
+    const categoryProfitData = [];
+    
+    {% for category, data in category_profits.items() %}
+    categoryLabels.push('{{ category }}');
+    categoryProfitData.push({{ data.profit }});
+    {% endfor %}
+    
+    const categoryData = {
+        labels: categoryLabels,
+        datasets: [{
+            label: 'Profit by Category',
+            data: categoryProfitData,
+            backgroundColor: [
+                'rgba(37, 99, 235, 0.8)',
+                'rgba(16, 185, 129, 0.8)',
+                'rgba(245, 158, 11, 0.8)',
+                'rgba(239, 68, 68, 0.8)',
+                'rgba(139, 92, 246, 0.8)',
+                'rgba(236, 72, 153, 0.8)'
+            ],
+            borderColor: [
+                'rgb(37, 99, 235)',
+                'rgb(16, 185, 129)',
+                'rgb(245, 158, 11)',
+                'rgb(239, 68, 68)',
+                'rgb(139, 92, 246)',
+                'rgb(236, 72, 153)'
+            ],
+            borderWidth: 2
+        }]
+    };
+    
+    new Chart(categoryCtx, {
+        type: 'doughnut',
+        data: categoryData,
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'right',
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.label + ': ₹' + context.parsed.toLocaleString();
+                        }
+                    }
+                }
+            }
+        }
+    });
+    {% endif %}
+</script>
+{% endblock %}
+

@@ -1,0 +1,232 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container">
+    <div class="section-header mb-4">
+        <div>
+            <h1 class="section-title">{{ product.name }}</h1>
+            <p class="section-subtitle">ARIMA Sales Forecast & Product Details</p>
+        </div>
+        <div>
+            <a href="{{ url_for('products_page') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Back to Products
+            </a>
+        </div>
+    </div>
+
+    <!-- Product Info Cards -->
+    <div class="dashboard-grid mb-4">
+        <div class="metric-card">
+            <div class="metric-label">SKU</div>
+            <div class="metric-value" style="font-size: 1.5rem;">{{ product.sku }}</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Category</div>
+            <div class="metric-value" style="font-size: 1.5rem;">{{ product.category or 'N/A' }}</div>
+        </div>
+        <div class="metric-card info">
+            <div class="metric-label">Stock Quantity</div>
+            <div class="metric-value">{{ product.stock_quantity or 0 }}</div>
+            <small class="text-muted">Reorder Level: {{ product.reorder_level or 0 }}</small>
+        </div>
+        <div class="metric-card success">
+            <div class="metric-label">Selling Price</div>
+            <div class="metric-value">₹{{ "{:,.2f}".format(product.selling_price or 0) }}</div>
+        </div>
+        <div class="metric-card warning">
+            <div class="metric-label">Cost Price</div>
+            <div class="metric-value">₹{{ "{:,.2f}".format(product.cost_price or 0) }}</div>
+        </div>
+        <div class="metric-card success">
+            <div class="metric-label">Profit per Unit</div>
+            <div class="metric-value">₹{{ "{:,.2f}".format((product.selling_price or 0) - (product.cost_price or 0)) }}</div>
+        </div>
+    </div>
+
+    <!-- ARIMA Forecast Section -->
+    <div class="arima-info-box mb-4">
+        <h5><i class="fas fa-brain me-2"></i>ARIMA Forecasting Model</h5>
+        <p><strong>Model Type:</strong> ARIMA(1,1,1) - AutoRegressive Integrated Moving Average</p>
+        <p><strong>Forecast Period:</strong> 14 days ahead</p>
+        <p><strong>How it works:</strong> The model analyzes historical sales patterns to predict future demand. The blue line shows actual sales, and the orange dashed line shows the ARIMA forecast.</p>
+        <p><i class="fas fa-lightbulb me-1"></i><strong>Tip:</strong> Use these forecasts to optimize inventory levels and avoid stockouts or overstocking.</p>
+    </div>
+
+    <!-- Forecast Chart -->
+    <div class="chart-container">
+        <h3 class="chart-title">
+            <i class="fas fa-chart-line me-2"></i>Sales Forecast (ARIMA Model)
+        </h3>
+        <canvas id="forecastChart" height="80"></canvas>
+    </div>
+
+    <!-- Forecast Statistics -->
+    {% if forecast_data.forecast_sum and forecast_data.forecast_sum > 0 %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-calculator me-2"></i>Forecast Statistics
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="metric-card">
+                        <div class="metric-label">Total Forecasted Units (14 days)</div>
+                        <div class="metric-value">
+                            {{ "{:.1f}".format(forecast_data.forecast_sum) }}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="metric-card">
+                        <div class="metric-label">Average Daily Forecast</div>
+                        <div class="metric-value">
+                            {{ "{:.1f}".format(forecast_data.forecast_avg) }}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="metric-card success">
+                        <div class="metric-label">Projected Revenue (14 days)</div>
+                        <div class="metric-value">
+                            ₹{{ "{:,.2f}".format(forecast_data.projected_revenue) }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Actions -->
+    <div class="card">
+        <div class="card-header">
+            <i class="fas fa-cog me-2"></i>Actions
+        </div>
+        <div class="card-body">
+            <a href="{{ url_for('edit_product', id=product.id) }}" class="btn btn-warning me-2">
+                <i class="fas fa-edit me-2"></i>Edit Product
+            </a>
+            <a href="{{ url_for('profit_analysis') }}" class="btn btn-success">
+                <i class="fas fa-chart-pie me-2"></i>View Profit Analysis
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const forecastData = {{ forecast_data | tojson | safe }};
+    
+    const ctx = document.getElementById('forecastChart').getContext('2d');
+    
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: forecastData.dates,
+            datasets: [
+                {
+                    label: 'Actual Sales',
+                    data: forecastData.actual,
+                    borderColor: 'rgb(37, 99, 235)',
+                    backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 4,
+                    pointHoverRadius: 6
+                },
+                {
+                    label: 'ARIMA Forecast (14 days)',
+                    data: forecastData.forecast,
+                    borderColor: 'rgb(245, 158, 11)',
+                    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                    borderWidth: 3,
+                    borderDash: [10, 5],
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 4,
+                    pointHoverRadius: 6
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top',
+                    labels: {
+                        font: {
+                            size: 14,
+                            weight: 'bold'
+                        },
+                        padding: 20
+                    }
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            if (context.parsed.y !== null) {
+                                label += context.parsed.y.toFixed(1) + ' units';
+                            }
+                            return label;
+                        }
+                    }
+                },
+                title: {
+                    display: false
+                }
+            },
+            scales: {
+                x: {
+                    display: true,
+                    title: {
+                        display: true,
+                        text: 'Date',
+                        font: {
+                            size: 14,
+                            weight: 'bold'
+                        }
+                    },
+                    grid: {
+                        display: true,
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Units Sold',
+                        font: {
+                            size: 14,
+                            weight: 'bold'
+                        }
+                    },
+                    grid: {
+                        display: true,
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return value.toFixed(0);
+                        }
+                    }
+                }
+            },
+            interaction: {
+                mode: 'nearest',
+                axis: 'x',
+                intersect: false
+            }
+        }
+    });
+</script>
+{% endblock %}
